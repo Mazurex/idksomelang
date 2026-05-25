@@ -1,13 +1,13 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub enum TokenType {
-    IntLiteral,
-    FloatLiteral,
-    
+    Number,
+    Float,
+
     Plus,
     Minus,
     Times,
-    TimesTimes, // Implement
+    TimesTimes,
     Slash,
     Percent,
 
@@ -30,7 +30,7 @@ pub enum TokenType {
     Identifier,
     Keyword,
 
-    EOF
+    EOF,
 }
 
 impl TryFrom<char> for TokenType {
@@ -50,7 +50,7 @@ impl TryFrom<char> for TokenType {
             '(' => Ok(TokenType::LParen),
             ')' => Ok(TokenType::RParen),
             ';' => Ok(TokenType::Semi),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
@@ -67,21 +67,22 @@ impl TokenType {
             ">=" => Ok(TokenType::MoreEqualThan),
             "||" => Ok(TokenType::Or),
             "&&" => Ok(TokenType::And),
-            _ => Err(())
+            _ => Err(()),
         }
     }
 }
 
+#[derive(Debug)]
 pub struct Token {
     pub(crate) t: TokenType,
-    pub(crate) value: Option<Vec<u8>>
+    pub(crate) value: Option<Vec<u8>>,
 }
 
 impl Token {
     pub fn stringify_value(&self) -> String {
         match &self.value {
             Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-            None => String::new()
+            None => String::new(),
         }
     }
 }
