@@ -1,21 +1,27 @@
 #![allow(dead_code)]
 
-use std::process;
+use crate::error::{LexerError, LexerErrorKind};
 use crate::lexer::tokens::{Token, TokenType};
 
 const KEYWORDS: [&str; 1] = ["return"];
 
 pub struct Lexer {
-    pub(crate) src: Vec<u8>,
+    pub file_name: String,
+    pub(crate) src: String,
+    pub(crate) chars: Vec<char>,
     pub(crate) position: usize,
     pub(crate) line: usize,
-    pub(crate) col: usize
+    pub(crate) col: usize,
 }
 
 impl Lexer {
-    pub fn init(src: String) -> Lexer {
+    pub fn init(src: String, file_name: String) -> Lexer {
+        let chars = src.chars().collect();
+
         Self {
-            src: Vec::from(src),
+            file_name,
+            src,
+            chars,
             position: 0,
             line: 1,
             col: 0,
@@ -27,7 +33,7 @@ impl Lexer {
             return '\0';
         }
 
-        self.src[self.position] as char
+        self.chars[self.position]
     }
 
     fn peek_next(&self) -> char {
@@ -35,7 +41,7 @@ impl Lexer {
             return '\0';
         }
 
-        self.src[self.position+1] as char
+        self.chars[self.position + 1]
     }
 
     fn is_eof(&self) -> bool {
@@ -43,14 +49,24 @@ impl Lexer {
     }
 
     fn advance(&mut self) -> char {
-        if self.is_eof() { return '\0'; }
+        if self.is_eof() {
+            return '\0';
+        }
 
-        let c = self.src[self.position] as char;
+        let c = self.peek();
         self.position += 1;
         c
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
+    pub fn get_line(&self, target_line: usize) -> String {
+        self.src
+            .lines()
+            .nth(target_line - 1)
+            .unwrap_or("")
+            .to_string()
+    }
+
+    pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
 
         while self.position < self.src.len() {
@@ -70,7 +86,7 @@ impl Lexer {
 
                 self.advance();
 
-                continue
+                continue;
             }
 
             // Skip whitespace
@@ -87,14 +103,20 @@ impl Lexer {
                 while self.peek().is_numeric() {
                     let n = self.peek_next();
                     if n.is_alphabetic() {
-                            println!("Unknown character in integer literal '{}' at ({}:{})", value, self.line, self.col);
-                            process::exit(1);
+                        return Err(LexerError::init(
+                            self,
+                            LexerErrorKind::InvalidNumber,
+                            "Invalid number literal".to_string(),
+                        ));
                     }
 
                     if n == '.' {
                         if is_float {
-                            println!("Unknown integer literal '{}' at ({}:{})", value, self.line, self.col);
-                            process::exit(1);
+                            return Err(LexerError::init(
+                                self,
+                                LexerErrorKind::InvalidNumber,
+                                String::from("Invalid number literal"),
+                            ));
                         }
 
                         is_float = true;
@@ -102,8 +124,11 @@ impl Lexer {
                         value.push(self.advance());
 
                         if !self.peek_next().is_numeric() {
-                            println!("Unknown integer literal '{}' at ({}:{})", value, self.line, self.col);
-                            process::exit(1);
+                            return Err(LexerError::init(
+                                self,
+                                LexerErrorKind::InvalidNumber,
+                                String::from("Invalid number literal"),
+                            ));
                         }
                     }
 
@@ -111,8 +136,12 @@ impl Lexer {
                 }
 
                 tokens.push(Token {
-                    t: if is_float {TokenType::FloatLiteral} else { TokenType::IntLiteral },
-                    value: Some(Vec::from(value))
+                    t: if is_float {
+                        TokenType::Float
+                    } else {
+                        TokenType::Number
+                    },
+                    value: Some(Vec::from(value)),
                 });
 
                 continue;
@@ -126,15 +155,14 @@ impl Lexer {
                     value.push(self.advance());
                 }
 
-                if KEYWORDS.contains(&value.as_str()) {
-                    tokens.push(Token {
-                        t: TokenType::Keyword, value: Some(Vec::from(value))
-                    });
-                } else {
-                    tokens.push(Token {
-                        t: TokenType::Identifier, value: Some(Vec::from(value))
-                    });
-                }
+                tokens.push(Token {
+                    t: if KEYWORDS.contains(&value.as_str()) {
+                        TokenType::Keyword
+                    } else {
+                        TokenType::Identifier
+                    },
+                    value: Some(Vec::from(value)),
+                });
 
                 continue;
             }
@@ -144,14 +172,14 @@ impl Lexer {
                 Ok(token) => {
                     tokens.push(Token {
                         t: token,
-                        value: None
+                        value: None,
                     });
 
                     self.advance();
                     self.advance();
 
-                    continue
-                },
+                    continue;
+                }
                 Err(_) => {}
             }
 
@@ -165,20 +193,23 @@ impl Lexer {
 
                     self.advance();
 
-                    continue
-                },
+                    continue;
+                }
                 Err(_) => {}
             }
 
-            println!("Unknown symbol '{}' at ({}:{})", c, self.line, self.col);
-            process::exit(1);
+            return Err(LexerError::init(
+                self,
+                LexerErrorKind::UnexpectedCharacter,
+                String::from("Unknown symbol"),
+            ));
         }
 
         tokens.push(Token {
             t: TokenType::EOF,
-            value: None
+            value: None,
         });
 
-        tokens
+        Ok(tokens)
     }
 }

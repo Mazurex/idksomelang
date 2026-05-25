@@ -1,10 +1,11 @@
 mod lexer;
+pub mod parser;
+pub mod error;
 
-use std::{env, fs, process};
 use crate::lexer::lexer::Lexer;
+use std::{env, fs, process};
 
 fn main() {
-
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
@@ -14,14 +15,26 @@ fn main() {
 
     let filepath = &args[1];
 
-    let src = fs::read_to_string(filepath)
-        .expect("File doesn't exist lmao");
+    let src = fs::read_to_string(filepath).expect("File doesn't exist lmao");
 
-
-    let mut lexer = Lexer::init(src);
-    let tokens = lexer.tokenize();
+    let mut lexer = Lexer::init(src, filepath.to_string());
+    let tokens = match lexer.tokenize() {
+        Ok(tokens) => tokens,
+        Err(e) => {
+            e.display();
+            std::process::exit(1);
+        }
+    };
 
     for token in &tokens {
-        println!("[ {:?}({}) ]", token.t, token.stringify_value());
+        let is_empty = token.stringify_value().is_empty();
+
+        println!(
+            "{:?}{}{}{}",
+            token.t,
+            if is_empty { ' ' } else { '(' },
+            token.stringify_value(),
+            if is_empty { ' ' } else { ')' }
+        );
     }
 }
