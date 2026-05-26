@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "idksomelang"
+name = "purrin-lang"
 version = "0.1.0"
