@@ -16,7 +16,7 @@ fn main() {
 
     let src = fs::read_to_string(filepath).expect("File doesn't exist lmao");
 
-    let mut lexer = Lexer::init(src, filepath.to_string());
+    let mut lexer = Lexer::new(src, filepath.to_string());
     let tokens = match lexer.tokenize() {
         Ok(tokens) => tokens,
         Err(e) => {
@@ -26,13 +26,13 @@ fn main() {
     };
 
     for token in &tokens {
-        let is_empty = token.stringify_value().is_empty();
+        let is_empty = token.v.is_some();
 
         println!(
             "{:?}{}{}{}",
             token.t,
             if is_empty { ' ' } else { '(' },
-            token.stringify_value(),
+            token.v.clone().unwrap_or(String::new()),
             if is_empty { ' ' } else { ')' }
         );
     }
