@@ -1,97 +1,66 @@
 #![allow(dead_code)]
 
 use crate::error::{LexerError, LexerErrorKind};
+use crate::lexer::cursor::Cursor;
 use crate::lexer::tokens::{Token, TokenType};
 
 const KEYWORDS: [&str; 1] = ["return"];
 
 pub struct Lexer {
     pub file_name: String,
-    pub(crate) src: String,
-    pub(crate) chars: Vec<char>,
-    pub(crate) position: usize,
-    pub(crate) line: usize,
-    pub(crate) col: usize,
+    pub cursor: Cursor,
 }
 
 impl Lexer {
     pub fn init(src: String, file_name: String) -> Lexer {
-        let chars = src.chars().collect();
-
         Self {
             file_name,
-            src,
-            chars,
-            position: 0,
-            line: 1,
-            col: 0,
+            cursor: Cursor::init(src),
         }
     }
 
-    fn peek(&self) -> char {
-        if self.position >= self.src.len() {
-            return '\0';
-        }
-
-        self.chars[self.position]
+    pub fn push_single(&mut self, tokens: &mut Vec<Token>, t: TokenType) {
+        tokens.push(Token { t, v: None });
+        self.cursor.advance();
     }
 
-    fn peek_next(&self) -> char {
-        if self.position + 1 >= self.src.len() {
-            return '\0';
-        }
-
-        self.chars[self.position + 1]
-    }
-
-    fn is_eof(&self) -> bool {
-        self.position >= self.src.len()
-    }
-
-    fn advance(&mut self) -> char {
-        if self.is_eof() {
-            return '\0';
-        }
-
-        let c = self.peek();
-        self.position += 1;
-        c
-    }
-
-    pub fn get_line(&self, target_line: usize) -> String {
-        self.src
-            .lines()
-            .nth(target_line - 1)
-            .unwrap_or("")
-            .to_string()
+    pub fn push_double(&mut self, tokens: &mut Vec<Token>, t: TokenType) {
+        tokens.push(Token { t, v: None });
+        self.cursor.advance();
+        self.cursor.advance();
     }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
 
-        while self.position < self.src.len() {
-            let c = self.peek();
+        while !self.cursor.is_eof() {
+            let c = match self.cursor.peek() {
+                None => break,
+                Some(c) => c,
+            };
 
+            // TODO: Separate line management into its own manager
             if c == '\n' {
-                self.line += 1;
-                self.col = 0;
+                self.cursor.line += 1;
+                self.cursor.col = 0;
             } else {
-                self.col += 1;
+                self.cursor.col += 1;
             }
 
-            if c == '/' && self.peek_next() == '/' {
-                while self.peek_next() != '\n' && self.peek_next() != '\0' {
-                    self.advance();
+            if c == '/' && self.cursor.peek_next() == Some('/') {
+                while self.cursor.peek_next() != Some('\n') && self.cursor.peek_next() != Some('\0')
+                {
+                    self.cursor.advance();
                 }
 
-                self.advance();
+                self.cursor.advance();
 
                 continue;
             }
 
             // Skip whitespace
             if c.is_whitespace() {
-                self.advance();
+                self.cursor.advance();
                 continue;
             }
 
@@ -100,8 +69,12 @@ impl Lexer {
                 let mut value = String::new();
                 let mut is_float = false;
 
-                while self.peek().is_numeric() {
-                    let n = self.peek_next();
+                while self.cursor.peek().is_some_and(char::is_numeric) {
+                    let n = match self.cursor.peek_next() {
+                        None => break,
+                        Some(c) => c,
+                    };
+
                     if n.is_alphabetic() {
                         return Err(LexerError::init(
                             self,
@@ -121,9 +94,9 @@ impl Lexer {
 
                         is_float = true;
 
-                        value.push(self.advance());
+                        value.push(self.cursor.advance().unwrap_or_else(|| '.'));
 
-                        if !self.peek_next().is_numeric() {
+                        if !self.cursor.peek_next().is_some_and(char::is_numeric) {
                             return Err(LexerError::init(
                                 self,
                                 LexerErrorKind::InvalidNumber,
@@ -132,7 +105,7 @@ impl Lexer {
                         }
                     }
 
-                    value.push(self.advance());
+                    value.push(self.cursor.advance().expect("REASON"));
                 }
 
                 tokens.push(Token {
@@ -141,7 +114,7 @@ impl Lexer {
                     } else {
                         TokenType::Number
                     },
-                    value: Some(Vec::from(value)),
+                    v: Some(Vec::from(value)),
                 });
 
                 continue;
@@ -151,8 +124,8 @@ impl Lexer {
             if c.is_alphabetic() {
                 let mut value = String::new();
 
-                while self.peek().is_alphanumeric() {
-                    value.push(self.advance());
+                while self.cursor.peek().is_some_and(char::is_alphanumeric) {
+                    value.push(self.cursor.advance().expect(""));
                 }
 
                 tokens.push(Token {
@@ -161,41 +134,50 @@ impl Lexer {
                     } else {
                         TokenType::Identifier
                     },
-                    value: Some(Vec::from(value)),
+                    v: Some(Vec::from(value)),
                 });
 
                 continue;
             }
 
-            // Double symbols (ie. ==)
-            match TokenType::try_from_two(c, self.peek_next()) {
-                Ok(token) => {
-                    tokens.push(Token {
-                        t: token,
-                        value: None,
-                    });
+            let (symbol_token, advance_by) = match (c, self.cursor.peek_next().unwrap_or(' ')) {
+                ('*', '*') => (Some(TokenType::TimesTimes), 2),
 
-                    self.advance();
-                    self.advance();
+                ('=', '=') => (Some(TokenType::EqualsEquals), 2),
+                ('!', '=') => (Some(TokenType::NotEquals), 2),
+                ('<', '=') => (Some(TokenType::LessEqualThan), 2),
+                ('>', '=') => (Some(TokenType::MoreEqualThan), 2),
+                ('|', '|') => (Some(TokenType::Or), 2),
+                ('&', '&') => (Some(TokenType::And), 2),
 
-                    continue;
+                ('+', _) => (Some(TokenType::Plus), 1),
+                ('-', _) => (Some(TokenType::Minus), 1),
+                ('*', _) => (Some(TokenType::Times), 1),
+                ('/', _) => (Some(TokenType::Slash), 1),
+                ('%', _) => (Some(TokenType::Percent), 1),
+
+                ('=', _) => (Some(TokenType::Equals), 1),
+                (';', _) => (Some(TokenType::Semi), 1),
+                ('(', _) => (Some(TokenType::LParen), 1),
+                (')', _) => (Some(TokenType::RParen), 1),
+
+                ('!', _) => (Some(TokenType::Not), 1),
+                ('>', _) => (Some(TokenType::MoreThan), 1),
+                ('<', _) => (Some(TokenType::LessThan), 1),
+                _ => (None, 0),
+            };
+
+            if symbol_token.is_some() {
+                tokens.push(Token {
+                    t: symbol_token.expect(""), // Since we literally check if its Some right above, this expect is just rust being rust
+                    v: None,
+                });
+
+                for _ in 0..advance_by {
+                    self.cursor.advance();
                 }
-                Err(_) => {}
-            }
 
-            // Singular symbols (ie. =)
-            match TokenType::try_from(c) {
-                Ok(token) => {
-                    tokens.push(Token {
-                        t: token,
-                        value: None,
-                    });
-
-                    self.advance();
-
-                    continue;
-                }
-                Err(_) => {}
+                continue;
             }
 
             return Err(LexerError::init(
@@ -207,7 +189,7 @@ impl Lexer {
 
         tokens.push(Token {
             t: TokenType::EOF,
-            value: None,
+            v: None,
         });
 
         Ok(tokens)

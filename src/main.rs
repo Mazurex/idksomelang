@@ -1,6 +1,5 @@
-mod lexer;
-pub mod parser;
 pub mod error;
+mod lexer;
 
 use crate::lexer::lexer::Lexer;
 use std::{env, fs, process};
@@ -9,7 +8,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 2 {
-        println!("Invalid usage! Correct usage is: ./idksomelang myfile.idk");
+        println!("Invalid usage! Correct usage is: ./purrin myfile.prn");
         process::exit(1);
     }
 
@@ -22,7 +21,7 @@ fn main() {
         Ok(tokens) => tokens,
         Err(e) => {
             e.display();
-            std::process::exit(1);
+            process::exit(1);
         }
     };
 
