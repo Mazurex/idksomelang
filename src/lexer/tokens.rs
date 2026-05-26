@@ -36,14 +36,15 @@ pub enum TokenType {
 #[derive(Debug)]
 pub struct Token {
     pub(crate) t: TokenType,
-    pub(crate) v: Option<Vec<u8>>,
+    pub(crate) v: Option<String>,
 }
 
 impl Token {
-    pub fn stringify_value(&self) -> String {
-        match &self.v {
-            Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-            None => String::new(),
-        }
+    pub fn new(t: TokenType) -> Self {
+        Self { t, v: None }
+    }
+
+    pub fn with_value(t: TokenType, v: String) -> Self {
+        Self { t, v: Some(v) }
     }
 }

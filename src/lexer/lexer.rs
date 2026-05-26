@@ -12,11 +12,91 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn init(src: String, file_name: String) -> Lexer {
+    pub fn new(src: String, file_name: String) -> Lexer {
         Self {
             file_name,
             cursor: Cursor::init(src),
         }
+    }
+
+    pub fn try_comment(&mut self) -> bool {
+        if self.cursor.peek() == Some('/') && self.cursor.peek_next() == Some('/') {
+            while self.cursor.peek() != Some('\n') && self.cursor.peek() != Some('\0') {
+                self.cursor.advance();
+            }
+
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn try_number(&mut self) -> Result<Option<Token>, LexerError> {
+        let Some(c) = self.cursor.peek() else {
+            return Ok(None);
+        };
+
+        if !c.is_ascii_digit() {
+            return Ok(None);
+        };
+
+        let mut value = String::new();
+        let mut is_float = false;
+
+        while let Some(c) = self.cursor.peek() {
+            if c.is_ascii_digit() {
+                value.push(c);
+                self.cursor.advance();
+                continue;
+            }
+
+            if c == '.' {
+                if is_float {
+                    return Err(LexerError::init(
+                        self,
+                        LexerErrorKind::InvalidNumber,
+                        String::from("Invalid float literals"),
+                    ));
+                }
+
+                is_float = true;
+
+                value.push(c);
+                self.cursor.advance();
+
+                match self.cursor.peek() {
+                    Some(next) if next.is_ascii_digit() => {}
+                    _ => {
+                        return Err(LexerError::init(
+                            self,
+                            LexerErrorKind::InvalidNumber,
+                            String::from("Expected digit after '.'"),
+                        ));
+                    }
+                }
+
+                continue;
+            }
+
+            if c.is_alphabetic() {
+                return Err(LexerError::init(
+                    self,
+                    LexerErrorKind::InvalidNumber,
+                    String::from("Invalid number literal"),
+                ));
+            }
+
+            break;
+        }
+
+        Ok(Some(Token::with_value(
+            if is_float {
+                TokenType::Float
+            } else {
+                TokenType::Number
+            },
+            value,
+        )))
     }
 
     pub fn push_single(&mut self, tokens: &mut Vec<Token>, t: TokenType) {
@@ -33,12 +113,7 @@ impl Lexer {
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
 
-        while !self.cursor.is_eof() {
-            let c = match self.cursor.peek() {
-                None => break,
-                Some(c) => c,
-            };
-
+        while let Some(c) = self.cursor.peek() {
             // TODO: Separate line management into its own manager
             if c == '\n' {
                 self.cursor.line += 1;
@@ -47,14 +122,7 @@ impl Lexer {
                 self.cursor.col += 1;
             }
 
-            if c == '/' && self.cursor.peek_next() == Some('/') {
-                while self.cursor.peek_next() != Some('\n') && self.cursor.peek_next() != Some('\0')
-                {
-                    self.cursor.advance();
-                }
-
-                self.cursor.advance();
-
+            if self.try_comment() {
                 continue;
             }
 
@@ -65,58 +133,8 @@ impl Lexer {
             }
 
             // Numeric Literals
-            if c.is_numeric() {
-                let mut value = String::new();
-                let mut is_float = false;
-
-                while self.cursor.peek().is_some_and(char::is_numeric) {
-                    let n = match self.cursor.peek_next() {
-                        None => break,
-                        Some(c) => c,
-                    };
-
-                    if n.is_alphabetic() {
-                        return Err(LexerError::init(
-                            self,
-                            LexerErrorKind::InvalidNumber,
-                            "Invalid number literal".to_string(),
-                        ));
-                    }
-
-                    if n == '.' {
-                        if is_float {
-                            return Err(LexerError::init(
-                                self,
-                                LexerErrorKind::InvalidNumber,
-                                String::from("Invalid number literal"),
-                            ));
-                        }
-
-                        is_float = true;
-
-                        value.push(self.cursor.advance().unwrap_or_else(|| '.'));
-
-                        if !self.cursor.peek_next().is_some_and(char::is_numeric) {
-                            return Err(LexerError::init(
-                                self,
-                                LexerErrorKind::InvalidNumber,
-                                String::from("Invalid number literal"),
-                            ));
-                        }
-                    }
-
-                    value.push(self.cursor.advance().expect("REASON"));
-                }
-
-                tokens.push(Token {
-                    t: if is_float {
-                        TokenType::Float
-                    } else {
-                        TokenType::Number
-                    },
-                    v: Some(Vec::from(value)),
-                });
-
+            if let Some(token) = self.try_number()? {
+                tokens.push(token);
                 continue;
             }
 
@@ -134,7 +152,7 @@ impl Lexer {
                     } else {
                         TokenType::Identifier
                     },
-                    v: Some(Vec::from(value)),
+                    v: Some(value),
                 });
 
                 continue;
