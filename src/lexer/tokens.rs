@@ -3,8 +3,8 @@
 #[derive(Copy)]
 #[derive(Clone)]
 pub enum TokenType {
-    Number,
-    Float,
+    NumberLit,
+    FloatLit,
 
     Plus,
     Minus,
@@ -12,9 +12,15 @@ pub enum TokenType {
     TimesTimes,
     Slash,
     Percent,
+    Inc,
+    Dec,
 
     LParen,
     RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
     Semi,
 
     Equals,
@@ -32,6 +38,9 @@ pub enum TokenType {
     Identifier,
 
     Return,
+    If,
+    Else,
+    Number,
 
     EOF,
 }
@@ -50,10 +59,20 @@ impl Token {
     pub fn with_value(t: TokenType, v: String) -> Self {
         Self { t, v: Some(v) }
     }
+
+    pub fn as_str(&self) -> String {
+        match &self.v {
+            Some(val) => format!("{:?}({})", self.t, val),
+            None => format!("{:?}", self.t)
+        }
+    }
 }
 
 pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("return", TokenType::Return),
+    ("if", TokenType::If),
+    ("else", TokenType::Else),
+    ("Number", TokenType::Number)
 ];
 
 pub const SYMBOLS: &[(&str, TokenType)] = &[
@@ -64,6 +83,8 @@ pub const SYMBOLS: &[(&str, TokenType)] = &[
     (">=", TokenType::MoreEqualThan),
     ("||", TokenType::Or),
     ("&&", TokenType::And),
+    ("++", TokenType::Inc),
+    ("--", TokenType::Dec),
 
     ("+", TokenType::Plus),
     ("-", TokenType::Minus),
@@ -75,6 +96,10 @@ pub const SYMBOLS: &[(&str, TokenType)] = &[
     (";", TokenType::Semi),
     ("(", TokenType::LParen),
     (")", TokenType::RParen),
+    ("{", TokenType::LBrace),
+    ("}", TokenType::RBrace),
+    ("[", TokenType::LBracket),
+    ("]", TokenType::RBracket),
 
     ("!", TokenType::Not),
     (">", TokenType::MoreThan),

@@ -26,14 +26,6 @@ fn main() {
     };
 
     for token in &tokens {
-        let is_empty = token.v.is_some();
-
-        println!(
-            "{:?}{}{}{}",
-            token.t,
-            if is_empty { ' ' } else { '(' },
-            token.v.clone().unwrap_or(String::new()),
-            if is_empty { ' ' } else { ')' }
-        );
+        println!("{}", token.as_str());
     }
 }

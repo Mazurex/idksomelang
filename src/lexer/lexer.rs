@@ -91,9 +91,9 @@ impl Lexer {
 
         Ok(Some(Token::with_value(
             if is_float {
-                TokenType::Float
+                TokenType::FloatLit
             } else {
-                TokenType::Number
+                TokenType::NumberLit
             },
             value,
         )))
@@ -126,7 +126,9 @@ impl Lexer {
             .map(|(_, token)| token);
         let token_type = keyword_token.copied().unwrap_or(TokenType::Identifier);
 
-        Some(Token::new(token_type))
+        let token_value = if token_type == TokenType::Identifier {Some(value)} else {None};
+
+        Some(Token {t: token_type, v: token_value})
     }
 
     pub fn try_symbol(&mut self) -> Option<Token> {
