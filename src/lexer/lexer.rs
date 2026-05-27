@@ -145,14 +145,6 @@ impl Lexer {
         let mut tokens: Vec<Token> = Vec::new();
 
         while let Some(c) = self.cursor.peek() {
-            // TODO: Separate line management into its own manager
-            if c == '\n' {
-                self.cursor.line += 1;
-                self.cursor.col = 0;
-            } else {
-                self.cursor.col += 1;
-            }
-
             if self.try_comment() {
                 continue;
             }

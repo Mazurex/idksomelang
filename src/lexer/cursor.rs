@@ -31,11 +31,11 @@ impl Cursor {
         }
     }
 
-    pub fn peek_next(&mut self) -> Option<char> {
-        if self.is_eof() {
+    pub fn peek_next(&self) -> Option<char> {
+        if self.position + 1 >= self.chars.len() {
             None
         } else {
-            Some(self.chars[self.position])
+            Some(self.chars[self.position + 1])
         }
     }
 
@@ -55,6 +55,14 @@ impl Cursor {
         } else {
             let c = self.peek();
             self.position += 1;
+
+            if c == Some('\n') {
+                self.line += 1;
+                self.col = 0;
+            } else {
+                self.col += 1;
+            }
+
             c
         }
     }
@@ -64,9 +72,14 @@ impl Cursor {
             return None;
         }
 
-        let c = self.peek_by(count);
-        self.position += count;
-        c
+        let mut result = String::new();
+
+        for _ in 0..count {
+            let c = self.advance()?;
+            result.push(c);
+        }
+
+        Some(result)
     }
 
     // TODO: Consume expected doesn't throw
