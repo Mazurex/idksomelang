@@ -7,7 +7,7 @@ pub struct Cursor {
 }
 
 impl Cursor {
-    pub fn init(src: String) -> Self {
+    pub fn new(src: String) -> Self {
         let chars = src.chars().collect();
 
         Self {
@@ -39,6 +39,16 @@ impl Cursor {
         }
     }
 
+    pub fn peek_by(&self, chars: usize) -> Option<String> {
+        let upper_bound = self.position + chars;
+
+        if upper_bound > self.chars.len() {
+            return None;
+        }
+
+        Some(self.chars[self.position..upper_bound].iter().collect())
+    }
+
     pub fn advance(&mut self) -> Option<char> {
         if self.is_eof() {
             None
@@ -47,6 +57,16 @@ impl Cursor {
             self.position += 1;
             c
         }
+    }
+
+    pub fn advance_by(&mut self, count: usize) -> Option<String> {
+        if self.position + count > self.chars.len() {
+            return None;
+        }
+
+        let c = self.peek_by(count);
+        self.position += count;
+        c
     }
 
     // TODO: Consume expected doesn't throw
