@@ -20,7 +20,9 @@ impl Lexer {
     pub fn try_comment(&mut self) -> bool {
         if self.cursor.peek_by(2) == Some(String::from("//")) {
             while let Some(c) = self.cursor.peek() {
-                if c == '\n' || c == '\0' {break}
+                if c == '\n' || c == '\0' {
+                    break;
+                }
 
                 self.cursor.advance();
             }
@@ -126,9 +128,16 @@ impl Lexer {
             .map(|(_, token)| token);
         let token_type = keyword_token.copied().unwrap_or(TokenType::Identifier);
 
-        let token_value = if token_type == TokenType::Identifier {Some(value)} else {None};
+        let token_value = if token_type == TokenType::Identifier {
+            Some(value)
+        } else {
+            None
+        };
 
-        Some(Token {t: token_type, v: token_value})
+        Some(Token {
+            t: token_type,
+            v: token_value,
+        })
     }
 
     pub fn try_symbol(&mut self) -> Option<Token> {
@@ -142,6 +151,50 @@ impl Lexer {
 
         None
     }
+    pub fn try_string(&mut self) -> Result<Option<Token>, LexerError> {
+        let Some(c) = self.cursor.peek() else {
+            return Ok(None);
+        };
+
+        if c != '"' {
+            return Ok(None);
+        }
+
+        let is_multiline = self.cursor.peek_by(3) == Some(String::from("\"\"\""));
+
+        let term = if is_multiline {"\"\"\""} else {"\""};
+        let term_len = term.len();
+
+        let mut is_terminated = false;
+        let mut value = String::new();
+
+        self.cursor.advance_by(if is_multiline {3} else {1});
+
+        while let Some(c) = self.cursor.peek() {
+            if c == '\n' && !is_multiline {
+                break;
+            }
+
+            if self.cursor.peek_by(term_len) == Some(term.to_string()) {
+                self.cursor.advance_by(term_len);
+                is_terminated = true;
+                break;
+            }
+
+            value.push(c);
+            self.cursor.advance();
+        }
+
+        if !is_terminated {
+            return Err(LexerError::init(self, LexerErrorKind::UnterminatedString, String::from("String literal missing '\"' terminator")))
+        }
+
+        Ok(Some(Token::with_value(TokenType::StringLit, value)))
+    }
+
+    // pub fn try_string(&mut self) -> Option<Token> {
+    //
+    // }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
@@ -167,6 +220,11 @@ impl Lexer {
             }
 
             if let Some(token) = self.try_symbol() {
+                tokens.push(token);
+                continue;
+            }
+
+            if let Some(token) = self.try_string()? {
                 tokens.push(token);
                 continue;
             }

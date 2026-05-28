@@ -1,10 +1,12 @@
 #[derive(Debug, PartialEq, Eq)]
 #[allow(dead_code)]
-#[derive(Copy)]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum TokenType {
     NumberLit,
     FloatLit,
+    BoolLit,   // TODO: TBI
+    StringLit, // TODO: TBI
+    CharLit,   // TODO: TBI
 
     Plus,
     Minus,
@@ -40,7 +42,12 @@ pub enum TokenType {
     Return,
     If,
     Else,
+
     Number,
+    String, // TODO: TBI
+    Bool,   // TODO: TBI
+    Float,  // TODO: TBI
+    Char,   // TODO: TBI
 
     EOF,
 }
@@ -62,8 +69,11 @@ impl Token {
 
     pub fn as_str(&self) -> String {
         match &self.v {
-            Some(val) => format!("{:?}({})", self.t, val),
-            None => format!("{:?}", self.t)
+            Some(val) => {
+                let escaped = val.replace('\n', "\\n");
+                format!("{:?}({})", self.t, escaped)
+            }
+            None => format!("{:?}", self.t),
         }
     }
 }
@@ -72,7 +82,7 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("return", TokenType::Return),
     ("if", TokenType::If),
     ("else", TokenType::Else),
-    ("Number", TokenType::Number)
+    ("Number", TokenType::Number),
 ];
 
 pub const SYMBOLS: &[(&str, TokenType)] = &[
@@ -85,13 +95,11 @@ pub const SYMBOLS: &[(&str, TokenType)] = &[
     ("&&", TokenType::And),
     ("++", TokenType::Inc),
     ("--", TokenType::Dec),
-
     ("+", TokenType::Plus),
     ("-", TokenType::Minus),
     ("*", TokenType::Times),
     ("/", TokenType::Slash),
     ("%", TokenType::Percent),
-
     ("=", TokenType::Equals),
     (";", TokenType::Semi),
     ("(", TokenType::LParen),
@@ -100,7 +108,6 @@ pub const SYMBOLS: &[(&str, TokenType)] = &[
     ("}", TokenType::RBrace),
     ("[", TokenType::LBracket),
     ("]", TokenType::RBracket),
-
     ("!", TokenType::Not),
     (">", TokenType::MoreThan),
     ("<", TokenType::LessThan),
