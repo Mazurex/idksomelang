@@ -3,6 +3,8 @@ use crate::lexer::lexer::Lexer;
 pub enum LexerErrorKind {
     UnexpectedCharacter,
     UnterminatedString,
+    UnterminatedChar,
+    InvalidChar,
     InvalidNumber
 }
 

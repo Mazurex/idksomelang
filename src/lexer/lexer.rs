@@ -162,13 +162,13 @@ impl Lexer {
 
         let is_multiline = self.cursor.peek_by(3) == Some(String::from("\"\"\""));
 
-        let term = if is_multiline {"\"\"\""} else {"\""};
+        let term = if is_multiline { "\"\"\"" } else { "\"" };
         let term_len = term.len();
 
         let mut is_terminated = false;
         let mut value = String::new();
 
-        self.cursor.advance_by(if is_multiline {3} else {1});
+        self.cursor.advance_by(if is_multiline { 3 } else { 1 });
 
         while let Some(c) = self.cursor.peek() {
             if c == '\n' && !is_multiline {
@@ -186,15 +186,64 @@ impl Lexer {
         }
 
         if !is_terminated {
-            return Err(LexerError::init(self, LexerErrorKind::UnterminatedString, String::from("String literal missing '\"' terminator")))
+            return Err(LexerError::init(
+                self,
+                LexerErrorKind::UnterminatedString,
+                format!("String literal missing {} terminator", term),
+            ));
         }
 
         Ok(Some(Token::with_value(TokenType::StringLit, value)))
     }
 
-    // pub fn try_string(&mut self) -> Option<Token> {
-    //
-    // }
+    // TODO: This is the exact same as string literals, make it only allow 1 char PWEASE
+    pub fn try_char(&mut self) -> Result<Option<Token>, LexerError> {
+        let Some(c) = self.cursor.peek() else {
+            return Ok(None);
+        };
+
+        if c != '\'' {
+            return Ok(None);
+        }
+
+        self.cursor.advance();
+
+        let mut is_terminated = false;
+        let mut value = String::new();
+
+        while let Some(c) = self.cursor.peek() {
+            if c == '\n' {
+                break;
+            }
+
+            if c == '\'' {
+                is_terminated = true;
+                self.cursor.advance();
+                break;
+            }
+
+            value.push(c);
+            self.cursor.advance();
+        }
+
+        if !is_terminated {
+            return Err(LexerError::init(
+                self,
+                LexerErrorKind::UnterminatedChar,
+                String::from("Char literal missing ' terminator"),
+            ));
+        }
+
+        if value.is_empty() {
+            return Err(LexerError::init(
+                self,
+                LexerErrorKind::InvalidChar,
+                format!("Char literal '{}' is an invalid character", value),
+            ));
+        }
+
+        Ok(Some(Token::with_value(TokenType::CharLit, value)))
+    }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
         let mut tokens: Vec<Token> = Vec::new();
@@ -225,6 +274,11 @@ impl Lexer {
             }
 
             if let Some(token) = self.try_string()? {
+                tokens.push(token);
+                continue;
+            }
+
+            if let Some(token) = self.try_char()? {
                 tokens.push(token);
                 continue;
             }
