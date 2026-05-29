@@ -85,6 +85,16 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("Number", TokenType::Number),
 ];
 
+pub const ESCAPE_CHARS: &[&str] = &[
+    "\\n",
+    "\\r",
+    "\\t",
+    "\\0",
+    "\\\\",
+    "\\\"",
+    "\\\'",
+];
+
 pub const SYMBOLS: &[(&str, TokenType)] = &[
     ("**", TokenType::TimesTimes),
     ("==", TokenType::EqualsEquals),

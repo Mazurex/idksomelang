@@ -2,7 +2,7 @@
 
 use crate::error::{LexerError, LexerErrorKind};
 use crate::lexer::cursor::Cursor;
-use crate::lexer::tokens::{KEYWORDS, SYMBOLS, Token, TokenType};
+use crate::lexer::tokens::{KEYWORDS, SYMBOLS, Token, TokenType, ESCAPE_CHARS};
 
 pub struct Lexer {
     pub file_name: String,
@@ -196,7 +196,6 @@ impl Lexer {
         Ok(Some(Token::with_value(TokenType::StringLit, value)))
     }
 
-    // TODO: This is the exact same as string literals, make it only allow 1 char PWEASE
     pub fn try_char(&mut self) -> Result<Option<Token>, LexerError> {
         let Some(c) = self.cursor.peek() else {
             return Ok(None);
@@ -230,15 +229,17 @@ impl Lexer {
             return Err(LexerError::init(
                 self,
                 LexerErrorKind::UnterminatedChar,
-                String::from("Char literal missing ' terminator"),
+                String::from("Unterminated char literal"),
             ));
         }
 
-        if value.is_empty() {
+        let is_escape = ESCAPE_CHARS.iter().any(|name| *name == value);
+
+        if value.len() != 1 && !is_escape {
             return Err(LexerError::init(
                 self,
                 LexerErrorKind::InvalidChar,
-                format!("Char literal '{}' is an invalid character", value),
+                String::from("Char literal is not a valid char"),
             ));
         }
 
