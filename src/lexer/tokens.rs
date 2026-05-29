@@ -4,9 +4,10 @@
 pub enum TokenType {
     NumberLit,
     FloatLit,
-    BoolLit,   // TODO: TBI
-    StringLit, // TODO: TBI
-    CharLit,   // TODO: TBI
+    BoolLit,
+    StringLit,
+    CharLit,
+    Idk,
 
     Plus,
     Minus,
@@ -44,10 +45,10 @@ pub enum TokenType {
     Else,
 
     Number,
-    String, // TODO: TBI
-    Bool,   // TODO: TBI
-    Float,  // TODO: TBI
-    Char,   // TODO: TBI
+    String,
+    Bool,
+    Float,
+    Char,
 
     EOF,
 }
@@ -84,6 +85,11 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("else", TokenType::Else),
 
     ("Number", TokenType::Number),
+    ("Float", TokenType::Float),
+    ("String", TokenType::String),
+    ("Char", TokenType::Char),
+    ("Bool", TokenType::Bool),
+    ("idk", TokenType::Idk),
 
     ("true", TokenType::BoolLit),
     ("false", TokenType::BoolLit),
