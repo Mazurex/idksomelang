@@ -41,10 +41,13 @@ impl Lexer {
             }
 
             if is_multiline && !is_terminated {
-                return Err(LexerError::init(
+                return Err(LexerError::new(
                     self,
                     LexerErrorKind::UnterminatedMultilineComment,
                     String::from("Multiline comment missing a '///' terminator"),
+                    Some(String::from(
+                        "Append '///' to the end of your multiline comment",
+                    )),
                 ));
             }
 
@@ -54,6 +57,7 @@ impl Lexer {
         }
     }
 
+    // TODO: On invalid number (12f), for help show just the number (12)
     pub fn try_number(&mut self) -> Result<Option<Token>, LexerError> {
         let Some(c) = self.cursor.peek() else {
             return Ok(None);
@@ -75,14 +79,18 @@ impl Lexer {
 
             if c == '.' {
                 if is_float {
-                    return Err(LexerError::init(
+                    return Err(LexerError::new(
                         self,
-                        LexerErrorKind::InvalidNumber,
-                        String::from("Invalid float literals"),
+                        LexerErrorKind::InvalidFloat,
+                        String::from("Invalid float literal"),
+                        Some(format!("Omit trailing '.' -> {}", &value[..value.len() - 1])),
                     ));
                 }
 
                 is_float = true;
+
+                let dot_line = self.cursor.line;
+                let dot_col = self.cursor.col;
 
                 value.push(c);
                 self.cursor.advance();
@@ -90,10 +98,16 @@ impl Lexer {
                 match self.cursor.peek() {
                     Some(next) if next.is_ascii_digit() => {}
                     _ => {
-                        return Err(LexerError::init(
+                        return Err(LexerError::with_span(
                             self,
                             LexerErrorKind::InvalidNumber,
+                            dot_line,
+                            dot_col,
                             String::from("Expected digit after '.'"),
+                            Some(format!(
+                                "Omit the trailing '.' -> {}",
+                                &value[..value.len() - 1]
+                            )),
                         ));
                     }
                 }
@@ -102,10 +116,11 @@ impl Lexer {
             }
 
             if c.is_alphabetic() {
-                return Err(LexerError::init(
+                return Err(LexerError::new(
                     self,
                     LexerErrorKind::InvalidNumber,
                     String::from("Invalid number literal"),
+                    None,
                 ));
             }
 
@@ -173,7 +188,7 @@ impl Lexer {
 
         None
     }
-    
+
     pub fn try_string(&mut self) -> Result<Option<Token>, LexerError> {
         let Some(c) = self.cursor.peek() else {
             return Ok(None);
@@ -209,10 +224,11 @@ impl Lexer {
         }
 
         if !is_terminated {
-            return Err(LexerError::init(
+            return Err(LexerError::new(
                 self,
                 LexerErrorKind::UnterminatedString,
                 format!("String literal missing {} terminator", term),
+                Some(format!("\"{}\"", value)),
             ));
         }
 
@@ -248,21 +264,24 @@ impl Lexer {
             self.cursor.advance();
         }
 
+        // TODO: If char is empty (') then don't suggest empty char lit ('')
         if !is_terminated {
-            return Err(LexerError::init(
+            return Err(LexerError::new(
                 self,
                 LexerErrorKind::UnterminatedChar,
                 String::from("Unterminated char literal"),
+                Some(format!("'{}'", value)),
             ));
         }
 
         let is_escape = ESCAPE_CHARS.iter().any(|name| *name == value);
 
         if value.len() != 1 && !is_escape {
-            return Err(LexerError::init(
+            return Err(LexerError::new(
                 self,
                 LexerErrorKind::InvalidChar,
                 String::from("Char literal is not a valid char"),
+                None,
             ));
         }
 
@@ -307,10 +326,11 @@ impl Lexer {
                 continue;
             }
 
-            return Err(LexerError::init(
+            return Err(LexerError::new(
                 self,
                 LexerErrorKind::UnexpectedCharacter,
                 format!("Unknown symbol '{c}'"),
+                None,
             ));
         }
 
