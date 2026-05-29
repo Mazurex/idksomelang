@@ -17,19 +17,40 @@ impl Lexer {
         }
     }
 
-    pub fn try_comment(&mut self) -> bool {
-        if self.cursor.peek_by(2) == Some(String::from("//")) {
+    pub fn try_comment(&mut self) -> Result<bool, LexerError> {
+        let is_multiline = self.cursor.peek_by(3) == Some(String::from("///"));
+        let mut is_terminated = false;
+
+        if is_multiline || self.cursor.peek_by(2) == Some(String::from("//")) {
+            if is_multiline {
+                self.cursor.advance_by(3);
+            }
+
             while let Some(c) = self.cursor.peek() {
-                if c == '\n' || c == '\0' {
+                if !is_multiline && (c == '\n' || c == '\0') {
+                    break;
+                }
+
+                if is_multiline && self.cursor.peek_by(3) == Some(String::from("///")) {
+                    is_terminated = true;
+                    self.cursor.advance_by(3);
                     break;
                 }
 
                 self.cursor.advance();
             }
 
-            true
+            if is_multiline && !is_terminated {
+                return Err(LexerError::init(
+                    self,
+                    LexerErrorKind::UnterminatedMultilineComment,
+                    String::from("Multiline comment missing a '///' terminator"),
+                ));
+            }
+
+            Ok(true)
         } else {
-            false
+            Ok(false)
         }
     }
 
@@ -251,7 +272,7 @@ impl Lexer {
         let mut tokens: Vec<Token> = Vec::new();
 
         while let Some(c) = self.cursor.peek() {
-            if self.try_comment() {
+            if self.try_comment()? {
                 continue;
             }
 

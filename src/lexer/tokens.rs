@@ -49,6 +49,7 @@ pub enum TokenType {
     Bool,
     Float,
     Char,
+    Const,
 
     EOF,
 }
@@ -89,6 +90,8 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("String", TokenType::String),
     ("Char", TokenType::Char),
     ("Bool", TokenType::Bool),
+
+    ("const", TokenType::Const),
     ("idk", TokenType::Idk),
 
     ("true", TokenType::BoolLit),

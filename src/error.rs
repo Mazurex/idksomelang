@@ -5,7 +5,9 @@ pub enum LexerErrorKind {
     UnterminatedString,
     UnterminatedChar,
     InvalidChar,
-    InvalidNumber
+    InvalidNumber,
+
+    UnterminatedMultilineComment
 }
 
 pub struct LexerError {
