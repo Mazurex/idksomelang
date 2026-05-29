@@ -134,7 +134,7 @@ impl Lexer {
         let mut value = String::new();
 
         while let Some(c) = self.cursor.peek() {
-            if c.is_alphanumeric() {
+            if c.is_alphanumeric() || c == '_' {
                 value.push(c);
                 self.cursor.advance();
                 continue;
@@ -173,6 +173,7 @@ impl Lexer {
 
         None
     }
+    
     pub fn try_string(&mut self) -> Result<Option<Token>, LexerError> {
         let Some(c) = self.cursor.peek() else {
             return Ok(None);
