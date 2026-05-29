@@ -273,13 +273,12 @@ impl Lexer {
             self.cursor.advance();
         }
 
-        // TODO: If char is empty (') then don't suggest empty char lit ('')
         if !is_terminated {
             return Err(LexerError::new(
                 self,
                 LexerErrorKind::UnterminatedChar,
                 String::from("Unterminated char literal"),
-                Some(format!("'{}'", value)),
+                if value.len() == 1 {Some(format!("'{}'", value))} else {None},
             ));
         }
 
@@ -290,7 +289,7 @@ impl Lexer {
                 self,
                 LexerErrorKind::InvalidChar,
                 String::from("Char literal is not a valid char"),
-                None,
+                Some(format!("Remove extra chars -> {:?}", value.chars().next().unwrap_or(' '))),
             ));
         }
 
