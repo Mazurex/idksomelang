@@ -88,11 +88,11 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("if", TokenType::If),
     ("else", TokenType::Else),
 
-    ("Number", TokenType::Number),
-    ("Float", TokenType::Float),
-    ("String", TokenType::String),
-    ("Char", TokenType::Char),
-    ("Bool", TokenType::Bool),
+    ("num", TokenType::Number),
+    ("float", TokenType::Float),
+    ("str", TokenType::String),
+    ("char", TokenType::Char),
+    ("bool", TokenType::Bool),
 
     ("const", TokenType::Const),
     ("idk", TokenType::Idk),
