@@ -60,7 +60,6 @@ impl Lexer {
         }
     }
 
-    // TODO: On invalid number (12f), for help show just the number (12)
     pub fn try_number(&mut self) -> Result<Option<Token>, LexerError> {
         let Some(c) = self.cursor.peek() else {
             return Ok(None);
@@ -72,9 +71,11 @@ impl Lexer {
 
         let mut value = String::new();
         let mut is_float = false;
+        let mut last_valid_num_pos = 0;
 
         while let Some(c) = self.cursor.peek() {
             if c.is_ascii_digit() {
+                last_valid_num_pos += 1;
                 value.push(c);
                 self.cursor.advance();
                 continue;
@@ -123,7 +124,7 @@ impl Lexer {
                     self,
                     LexerErrorKind::InvalidNumber,
                     String::from("Invalid number literal"),
-                    None,
+                    Some(format!("Omit invalid characters -> {}", &value[..last_valid_num_pos])),
                 ));
             }
 
