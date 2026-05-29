@@ -2,7 +2,7 @@
 
 use crate::error::{LexerError, LexerErrorKind};
 use crate::lexer::cursor::Cursor;
-use crate::lexer::tokens::{KEYWORDS, SYMBOLS, Token, TokenType, ESCAPE_CHARS};
+use crate::lexer::tokens::{ESCAPE_CHARS, KEYWORDS, SYMBOLS, Token, TokenType};
 
 pub struct Lexer {
     pub file_name: String,
@@ -128,7 +128,8 @@ impl Lexer {
             .map(|(_, token)| token);
         let token_type = keyword_token.copied().unwrap_or(TokenType::Identifier);
 
-        let token_value = if token_type == TokenType::Identifier {
+        let token_value = if token_type == TokenType::Identifier || token_type == TokenType::BoolLit
+        {
             Some(value)
         } else {
             None

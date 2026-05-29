@@ -82,7 +82,11 @@ pub const KEYWORDS: &[(&str, TokenType)] = &[
     ("return", TokenType::Return),
     ("if", TokenType::If),
     ("else", TokenType::Else),
+
     ("Number", TokenType::Number),
+
+    ("true", TokenType::BoolLit),
+    ("false", TokenType::BoolLit),
 ];
 
 pub const ESCAPE_CHARS: &[&str] = &[
