@@ -1,12 +1,13 @@
 // Copyright 2026 Maz
 // Licensed under the Apache License, Version 2.0
 
+use crate::span::Position;
+
 pub struct LexerCursor {
     pub src: String,
     pub chars: Vec<char>,
-    pub position: usize,
-    pub line: usize,
-    pub col: usize,
+    pub char_position: usize,
+    pub position: Position,
 }
 
 impl LexerCursor {
@@ -16,40 +17,39 @@ impl LexerCursor {
         Self {
             src,
             chars,
-            position: 0,
-            line: 1,
-            col: 0,
+            char_position: 0,
+            position: Position::new(1, 0),
         }
     }
 
     pub fn is_eof(&self) -> bool {
-        self.position >= self.chars.len()
+        self.char_position >= self.chars.len()
     }
 
     pub fn peek(&self) -> Option<char> {
         if self.is_eof() {
             None
         } else {
-            Some(self.chars[self.position])
+            Some(self.chars[self.char_position])
         }
     }
 
     pub fn peek_next(&self) -> Option<char> {
-        if self.position + 1 >= self.chars.len() {
+        if self.char_position + 1 >= self.chars.len() {
             None
         } else {
-            Some(self.chars[self.position + 1])
+            Some(self.chars[self.char_position + 1])
         }
     }
 
     pub fn peek_by(&self, chars: usize) -> Option<String> {
-        let upper_bound = self.position + chars;
+        let upper_bound = self.char_position + chars;
 
         if upper_bound > self.chars.len() {
             return None;
         }
 
-        Some(self.chars[self.position..upper_bound].iter().collect())
+        Some(self.chars[self.char_position..upper_bound].iter().collect())
     }
 
     pub fn advance(&mut self) -> Option<char> {
@@ -57,13 +57,12 @@ impl LexerCursor {
             None
         } else {
             let c = self.peek();
-            self.position += 1;
+            self.char_position += 1;
 
             if c == Some('\n') {
-                self.line += 1;
-                self.col = 0;
+                self.position.advance_line()
             } else {
-                self.col += 1;
+                self.position.advance_col()
             }
 
             c
@@ -71,7 +70,7 @@ impl LexerCursor {
     }
 
     pub fn advance_by(&mut self, count: usize) -> Option<String> {
-        if self.position + count > self.chars.len() {
+        if self.char_position + count > self.chars.len() {
             return None;
         }
 

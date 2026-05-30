@@ -1,6 +1,8 @@
 // Copyright 2026 Maz
 // Licensed under the Apache License, Version 2.0
 
+use crate::span::Span;
+
 #[derive(Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
@@ -62,15 +64,16 @@ pub enum TokenType {
 pub struct Token {
     pub(crate) t: TokenType,
     pub(crate) v: Option<String>,
+    pub(crate) span: Span
 }
 
 impl Token {
-    pub fn new(t: TokenType) -> Self {
-        Self { t, v: None }
+    pub fn new(t: TokenType, span: Span) -> Self {
+        Self { t, v: None, span }
     }
 
-    pub fn with_value(t: TokenType, v: String) -> Self {
-        Self { t, v: Some(v) }
+    pub fn with_value(t: TokenType, v: String, span: Span) -> Self {
+        Self { t, v: Some(v), span}
     }
 
     pub fn as_str(&self) -> String {

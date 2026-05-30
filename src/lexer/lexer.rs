@@ -3,9 +3,11 @@
 
 #![allow(dead_code)]
 
-use crate::error::lexer_error::{LexerError, LexerErrorKind};
 use crate::cursor::LexerCursor;
+use crate::error::lexer_error::{LexerError, LexerErrorKind};
 use crate::lexer::tokens::{ESCAPE_CHARS, KEYWORDS, SYMBOLS, Token, TokenType};
+use crate::span::{Position, Span};
+use std::io::Cursor;
 
 pub struct Lexer {
     pub file_name: String,
@@ -23,6 +25,8 @@ impl Lexer {
     pub fn try_comment(&mut self) -> Result<bool, LexerError> {
         let is_multiline = self.cursor.peek_by(3) == Some(String::from("///"));
         let mut is_terminated = false;
+
+        let starting_pos = Position::from_cursor(&self.cursor);
 
         if is_multiline || self.cursor.peek_by(2) == Some(String::from("//")) {
             if is_multiline {
@@ -46,6 +50,7 @@ impl Lexer {
             if is_multiline && !is_terminated {
                 return Err(LexerError::new(
                     self,
+                    Span::new(starting_pos, Position::from_cursor(&self.cursor)),
                     LexerErrorKind::UnterminatedMultilineComment,
                     String::from("Multiline comment missing a '///' terminator"),
                     Some(String::from(
@@ -69,6 +74,7 @@ impl Lexer {
             return Ok(None);
         };
 
+        let starting_pos = Position::from_cursor(&self.cursor);
         let mut value = String::new();
         let mut is_float = false;
         let mut last_valid_num_pos = 0;
@@ -90,16 +96,19 @@ impl Lexer {
                 if is_float {
                     return Err(LexerError::new(
                         self,
+                        Span::new(starting_pos, Position::from_cursor(&self.cursor)),
                         LexerErrorKind::InvalidFloat,
                         String::from("Invalid float literal"),
-                        Some(format!("Omit trailing '.' -> {}", &value[..value.len() - 1])),
+                        Some(format!(
+                            "Omit trailing '.' -> {}",
+                            &value[..value.len() - 1]
+                        )),
                     ));
                 }
 
                 is_float = true;
 
-                let dot_line = self.cursor.line;
-                let dot_col = self.cursor.col;
+                let dot_pos = Position::from_cursor(&self.cursor);
 
                 value.push(c);
                 self.cursor.advance();
@@ -107,11 +116,10 @@ impl Lexer {
                 match self.cursor.peek() {
                     Some(next) if next.is_ascii_digit() => {}
                     _ => {
-                        return Err(LexerError::with_span(
+                        return Err(LexerError::new(
                             self,
+                            Span::single(dot_pos),
                             LexerErrorKind::InvalidNumber,
-                            dot_line,
-                            dot_col,
                             String::from("Expected digit after '.'"),
                             Some(format!(
                                 "Omit the trailing '.' -> {}",
@@ -127,9 +135,13 @@ impl Lexer {
             if c.is_alphabetic() {
                 return Err(LexerError::new(
                     self,
+                    Span::single(Position::from_cursor(&self.cursor)),
                     LexerErrorKind::InvalidNumber,
                     String::from("Invalid integer literal"),
-                    Some(format!("Omit invalid characters -> {}", &value[..last_valid_num_pos])),
+                    Some(format!(
+                        "Omit invalid characters -> {}",
+                        &value[..last_valid_num_pos]
+                    )),
                 ));
             }
 
@@ -143,6 +155,7 @@ impl Lexer {
                 TokenType::IntegerLit
             },
             value,
+            Span::new(starting_pos, Position::from_cursor(&self.cursor)),
         )))
     }
 
@@ -154,6 +167,8 @@ impl Lexer {
         if !c.is_alphabetic() {
             return None;
         }
+
+        let starting_pos = Position::from_cursor(&self.cursor);
 
         let mut value = String::new();
 
@@ -183,15 +198,21 @@ impl Lexer {
         Some(Token {
             t: token_type,
             v: token_value,
+            span: Span::new(starting_pos, Position::from_cursor(&self.cursor)),
         })
     }
 
     pub fn try_symbol(&mut self) -> Option<Token> {
+        let starting_pos = Position::from_cursor(&self.cursor);
+
         for (symbol, token_type) in SYMBOLS {
             if self.cursor.peek_by(symbol.len()).as_deref() == Some(symbol) {
                 self.cursor.advance_by(symbol.len());
 
-                return Some(Token::new(*token_type));
+                return Some(Token::new(
+                    *token_type,
+                    Span::new(starting_pos, Position::from_cursor(&self.cursor)),
+                ));
             }
         }
 
@@ -207,6 +228,7 @@ impl Lexer {
             return Ok(None);
         }
 
+        let starting_pos = Position::from_cursor(&self.cursor);
         let is_multiline = self.cursor.peek_by(3) == Some(String::from("\"\"\""));
 
         let term = if is_multiline { "\"\"\"" } else { "\"" };
@@ -235,13 +257,18 @@ impl Lexer {
         if !is_terminated {
             return Err(LexerError::new(
                 self,
+                Span::single(Position::from_cursor(&self.cursor)),
                 LexerErrorKind::UnterminatedString,
                 format!("String literal missing {} terminator", term),
                 Some(format!("\"{}\"", value)),
             ));
         }
 
-        Ok(Some(Token::with_value(TokenType::StringLit, value)))
+        Ok(Some(Token::with_value(
+            TokenType::StringLit,
+            value,
+            Span::new(starting_pos, Position::from_cursor(&self.cursor)),
+        )))
     }
 
     pub fn try_char(&mut self) -> Result<Option<Token>, LexerError> {
@@ -252,6 +279,8 @@ impl Lexer {
         if c != '\'' {
             return Ok(None);
         }
+
+        let starting_pos = Position::from_cursor(&self.cursor);
 
         self.cursor.advance();
 
@@ -276,9 +305,14 @@ impl Lexer {
         if !is_terminated {
             return Err(LexerError::new(
                 self,
+                Span::single(Position::from_cursor(&self.cursor)),
                 LexerErrorKind::UnterminatedChar,
                 String::from("Unterminated char literal"),
-                if value.len() == 1 {Some(format!("'{}'", value))} else {None},
+                if value.len() == 1 {
+                    Some(format!("'{}'", value))
+                } else {
+                    None
+                },
             ));
         }
 
@@ -287,13 +321,21 @@ impl Lexer {
         if value.len() != 1 && !is_escape {
             return Err(LexerError::new(
                 self,
+                Span::new(starting_pos, Position::from_cursor(&self.cursor)),
                 LexerErrorKind::InvalidChar,
                 String::from("Char literal is not a valid char"),
-                Some(format!("Remove extra chars -> {:?}", value.chars().next().unwrap_or(' '))),
+                Some(format!(
+                    "Remove extra chars -> {:?}",
+                    value.chars().next().unwrap_or(' ')
+                )),
             ));
         }
 
-        Ok(Some(Token::with_value(TokenType::CharLit, value)))
+        Ok(Some(Token::with_value(
+            TokenType::CharLit,
+            value,
+            Span::new(starting_pos, Position::from_cursor(&self.cursor)),
+        )))
     }
 
     pub fn tokenize(&mut self) -> Result<Vec<Token>, LexerError> {
@@ -336,16 +378,17 @@ impl Lexer {
 
             return Err(LexerError::new(
                 self,
+                Span::single(Position::from_cursor(&self.cursor)),
                 LexerErrorKind::UnexpectedCharacter,
                 format!("Unknown symbol '{c}'"),
                 None,
             ));
         }
 
-        tokens.push(Token {
-            t: TokenType::EOF,
-            v: None,
-        });
+        tokens.push(Token::new(
+            TokenType::EOF,
+            Span::single(Position::from_cursor(&self.cursor)),
+        ));
 
         Ok(tokens)
     }

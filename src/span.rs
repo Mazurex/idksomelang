@@ -1,5 +1,8 @@
 #![allow(dead_code)]
-#[derive(Copy, Clone)]
+
+use crate::cursor::LexerCursor;
+
+#[derive(Copy, Clone, Debug)]
 pub struct Position {
     pub line: usize,
     pub col: usize,
@@ -8,6 +11,13 @@ pub struct Position {
 impl Position {
     pub fn new(line: usize, col: usize) -> Self {
         Self { line, col }
+    }
+
+    pub fn from_cursor(cursor: &LexerCursor) -> Self {
+        Self {
+            line: cursor.position.line,
+            col: cursor.position.col
+        }
     }
 
     pub fn advance_col(&mut self) {
@@ -20,6 +30,7 @@ impl Position {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Span {
     pub start: Position,
     pub end: Position,
