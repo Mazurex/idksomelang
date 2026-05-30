@@ -4,7 +4,6 @@
 pub mod error;
 pub mod lexer;
 pub mod span;
-pub mod parser;
 pub mod cursor;
 
 use crate::lexer::lexer::Lexer;
